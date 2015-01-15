@@ -24,8 +24,9 @@ public class EchoClientHandler extends
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx,
-        ByteBuf in) {
+        ByteBuf in) throws Exception {
         System.out.println("Client received: " + in.toString(CharsetUtil.UTF_8));
+        System.out.println("Client received: " + ByteBufUtil.hexDump(in.readBytes(in.readableBytes())));
     }
 
     @Override
@@ -33,5 +34,10 @@ public class EchoClientHandler extends
         Throwable cause) {
         cause.printStackTrace();
         ctx.close();
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
     }
 }

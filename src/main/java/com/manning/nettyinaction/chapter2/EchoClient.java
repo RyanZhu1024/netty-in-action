@@ -1,9 +1,11 @@
 package com.manning.nettyinaction.chapter2;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -28,7 +30,7 @@ public class EchoClient {
     public void start() throws Exception {
         EventLoopGroup group = new NioEventLoopGroup();
         try {
-            Bootstrap b = new Bootstrap();
+            final Bootstrap b = new Bootstrap();
             b.group(group)
              .channel(NioSocketChannel.class)
              .remoteAddress(new InetSocketAddress(host, port))
@@ -41,24 +43,36 @@ public class EchoClient {
                  }
              });
 
-            ChannelFuture f = b.connect().sync();
-
+            ChannelFuture f = b.connect();
+//            f.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+            f.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    if(!channelFuture.isSuccess()) {
+                        System.out.println("Connection refused and try again");
+                        channelFuture.channel().eventLoop().schedule(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    start();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }, 1000L, TimeUnit.MILLISECONDS);
+                    }
+                }
+            });
             f.channel().closeFuture().sync();
         } finally {
-            group.shutdownGracefully().sync();
+//            group.shutdownGracefully().sync();
         }
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length != 2) {
-            System.err.println(
-                    "Usage: " + EchoClient.class.getSimpleName() +
-                    " <host> <port>");
-            return;
-        }
 
-        final String host = args[0];
-        final int port = Integer.parseInt(args[1]);
+        final String host = "127.0.0.1";
+        final int port = Integer.parseInt("8080");
 
         new EchoClient(host, port).start();
     }
